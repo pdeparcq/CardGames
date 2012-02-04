@@ -4,12 +4,13 @@ import pygame
 import pygame.image
 
 class Card:
-    def __init__(self):
+    def __init__(self,card):
         self.x = 0
         self.y = 0
-        self.image = pygame.image.load("../res/img/club01.gif")
+        self.card=card
     def draw(self,surface):
-        surface.blit(self.image,(self.x,self.y))
+        image = pygame.image.load("../res/img/" + self.card.suit.name + ("%02d" % self.card.symbol.value) + ".gif")
+        surface.blit(image,(self.x,self.y))
 
 class Game:
     def __init__(self):
