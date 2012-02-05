@@ -18,14 +18,16 @@ def main():
         i=0
         while card is not None:
             c = view.Card(card)
-            c.x = ((i%10)*80)+5
-            c.y = ((i/10)*100)+5
+            c.x = ((i%10)*80)+3
+            c.y = ((i/10)*100)+3
             game.add_item(c)
             card = deck.get()
             i+=1
         game.play()
         return 0
     except:
+        for info in sys.exc_info():
+            print info
         return -1
     
 if __name__ == "__main__":

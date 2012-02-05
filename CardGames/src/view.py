@@ -2,15 +2,20 @@ __author__ = 'GAG569'
 
 import pygame
 import pygame.image
+import util
+
+ResourceManager = util.ResourceManager()
 
 class Card:
     def __init__(self,card):
         self.x = 0
         self.y = 0
-        self.card=card
+        self.set_model(card)
+    def set_model(self,card):
+        self.card = card
+        self.image = ResourceManager.get_image(self.card.suit.name + ("%02d" % self.card.symbol.value))
     def draw(self,surface):
-        image = pygame.image.load("../res/img/" + self.card.suit.name + ("%02d" % self.card.symbol.value) + ".gif")
-        surface.blit(image,(self.x,self.y))
+        surface.blit(self.image,(self.x,self.y))
 
 class Game:
     def __init__(self):
