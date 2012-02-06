@@ -14,7 +14,7 @@ def main():
         game = view.Game()
         deck = domain.DeckFactory().create_deck()
         deck.shuffle()
-        game.add_item(view.Card(deck.get()))
+        game.add_component(view.Card(deck.get()))
         game.play()
         return 0
     except:
