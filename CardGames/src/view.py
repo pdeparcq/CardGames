@@ -29,6 +29,8 @@ class Entity(Component):
     def get_component(self,name):
         if self.components.__contains__(name):
             return self.components[name]
+        if not self.entity is None:
+            return self.entity.get_component(name)
         return None
     def get_components(self):
         return self.components.values()
@@ -49,50 +51,82 @@ class Draggable(Component):
         self.offset_y = 0
         self.is_dragging = False
         self.position = entity.get_component("Position")
+        self.sprite = entity.get_component("Sprite")
     def handle_event(self,event):
         if isinstance(event,events.MouseEvent):
             event = event.detail
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and self.sprite.get_bounding_rectangle().collidepoint(event.pos[0],event.pos[1]):
                 if event.button == 1:
                     self.offset_x = event.pos[0] - self.position.x
                     self.offset_y = event.pos[1]- self.position.y
                     self.is_dragging = True
+                    self.sprite.set_layer("front")
             if event.type == pygame.MOUSEMOTION:
                 if self.is_dragging:
                     self.position.x = event.pos[0] - self.offset_x
                     self.position.y = event.pos[1] - self.offset_y
             if event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:
+                if event.button == 1 and self.is_dragging:
                     self.is_dragging = False
+                    self.sprite.set_layer("back")
 
-class CardRenderer(Component):
+
+
+class Sprite(Component):
     def set_entity(self,entity):
         Component.set_entity(self,entity)
         self.position = entity.get_component("Position")
-        self.image = ResourceManager.get_image(entity.card.suit.name + ("%02d" % entity.card.symbol.value))
+        self.sprite = pygame.sprite.Sprite()
+        self.sprite.image = pygame.Surface((0,0))
+        self.sprite.rect = pygame.Rect(0,0,0,0)
+    def set_layer(self,name):
+        screen = self.entity.get_component("Screen")
+        screen.set_layer(name,self)
+    def set_image(self,image):
+        self.image = image
+    def get_width(self):
+        return self.image.get_width()
+    def get_height(self):
+        return self.image.get_height()
+    def get_bounding_rectangle(self):
+        return pygame.Rect(self.position.x,self.position.y,self.get_width(),self.get_height())
     def handle_event(self,event):
-        if isinstance(event,events.DrawEvent):
-            event.surface.blit(self.image,(self.position.x,self.position.y))
+        if isinstance(event,events.TickEvent):
+            self.sprite.image = self.image
+            self.sprite.rect = self.get_bounding_rectangle()
 
 class Card(Entity):
     def __init__(self,card):
         Entity.__init__(self)
-        self.set_model(card)
         self.add_component(Position())
+        self.add_component(Sprite())
         self.add_component(Draggable())
-        self.add_component(CardRenderer())
+        self.set_model(card)
+    def set_entity(self,entity):
+        Component.set_entity(self,entity)
+        self.get_component("Sprite").set_layer("back")
     def set_model(self,card):
         self.card = card
-
+        self.get_component("Sprite").set_image(ResourceManager.get_image(card.suit.name + ("%02d" % card.symbol.value)))
 
 class Screen(Component):
     def __init__(self):
         Component.__init__(self)
         self.surface = pygame.display.set_mode((800, 600))
+        self.layers = {}
+    def set_layer(self,name,sprite):
+        if not self.layers.has_key(name):
+            self.layers[name] = pygame.sprite.LayeredUpdates()
+        for group in self.layers.values():
+            if group.has(sprite.sprite):
+                group.remove(sprite.sprite)
+        self.layers[name].add(sprite.sprite)
     def handle_event(self,event):
         if isinstance(event,events.TickEvent):
             self.surface.fill((0,0,0))
-            self.post_event(events.DrawEvent(self.surface))
+            #self.post_event(events.DrawEvent(self.surface))
+            for group in self.layers.values():
+                group.draw(self.surface)
             pygame.display.flip()
 
 class MouseController(Component):
@@ -100,9 +134,18 @@ class MouseController(Component):
         Component.__init__(self)
     def handle_event(self,event):
         if isinstance(event,events.TickEvent):
+            if pygame.event.peek(pygame.QUIT):
+                self.post_event(events.QuitEvent())
             for me in pygame.event.get([pygame.MOUSEBUTTONDOWN,pygame.MOUSEBUTTONUP,pygame.MOUSEMOTION]):
                 self.post_event(events.MouseEvent(me))
 
+class KeyboardController(Component):
+    def __init__(self):
+        Component.__init__(self)
+    def handle_event(self,event):
+        if isinstance(event,events.TickEvent):
+            for ke in pygame.event.get([pygame.KEYDOWN,pygame.KEYUP]):
+                self.post_event(events.KeyEvent(ke))
 
 class GameEngine(Component):
     def __init__(self):
@@ -114,6 +157,7 @@ class GameEngine(Component):
             self.post_event(events.TickEvent())
             #clear pygame events that were not handled
             pygame.event.clear()
+            #only send ticks at certain frame rate
             self.clock.tick(30)
     def handle_event(self,event):
         if isinstance(event,events.QuitEvent):
@@ -126,5 +170,11 @@ class Game(Entity):
         self.add_component(self.engine)
         self.add_component(Screen())
         self.add_component(MouseController())
+        self.add_component(KeyboardController())
     def play(self):
         self.engine.run()
+    def handle_event(self,event):
+        if isinstance(event,events.KeyEvent):
+            if event.detail.type==pygame.KEYUP and event.detail.key==pygame.K_ESCAPE:
+                self.post_event(events.QuitEvent())
+        Entity.handle_event(self,event)

@@ -14,7 +14,10 @@ def main():
         game = view.Game()
         deck = domain.DeckFactory().create_deck()
         deck.shuffle()
-        game.add_component(view.Card(deck.get()))
+        card = deck.get()
+        while not card is None:
+            game.add_component(view.Card(card))
+            card = deck.get()
         game.play()
         return 0
     except:

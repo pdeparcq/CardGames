@@ -15,3 +15,7 @@ class DrawEvent:
 class MouseEvent:
     def __init__(self,event):
         self.detail = event
+
+class KeyEvent:
+    def __init__(self,event):
+        self.detail = event
